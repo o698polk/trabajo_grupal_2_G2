@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+jinja2
+python-jose[cryptography]
+passlib[bcrypt]
+bcrypt==4.0.1
+sqlalchemy
+psycopg2-binary
+python-dotenv
+selenium
+webdriver-manager
+python-multipart
+beautifulsoup4
+pandas
+numpy
