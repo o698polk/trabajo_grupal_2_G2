@@ -3,13 +3,14 @@ from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from . import models, auth, crud, scraping
+from . import models,auth, crud, scraping
 from .models import engine, get_db
 from datetime import timedelta
 import os
 from jose import JWTError, jwt
 from .config import settings
 
+# Create database tables
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
@@ -88,15 +89,14 @@ async def logout():
     return response
 
 @app.get("/dashboard", response_class=HTMLResponse)
-async def dashboard(request: Request, current_user: models.User = Depends(get_current_user_cookie), db: Session = Depends(get_db)):
+async def dashboard(request: Request, current_user: models.User = Depends(get_current_user_cookie)):
     if not current_user or current_user.role != "admin":
         return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
     
-    products = crud.get_all_products(db)
-    return templates.TemplateResponse("dashboard.html", {"request": request, "user": current_user, "products": products})
+    return templates.TemplateResponse("dashboard.html", {"request": request, "user": current_user})
 
 @app.get("/api/search")
-def search(query: str, current_user: models.User = Depends(get_current_user_cookie), db: Session = Depends(get_db)):
+async def search(query: str, current_user: models.User = Depends(get_current_user_cookie), db: Session = Depends(get_db)):
     if not current_user or current_user.role != "admin":
          raise HTTPException(status_code=403, detail="Not authorized")
     
