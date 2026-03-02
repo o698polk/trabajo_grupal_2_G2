@@ -3,8 +3,8 @@ from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from . import models, auth, crud, scraping
-from .models import engine, get_db
+from . import models, database, auth, crud, scraping
+from .database import engine, get_db
 from datetime import timedelta
 import os
 from jose import JWTError, jwt
@@ -80,6 +80,28 @@ async def logout(response: Response):
     response.delete_cookie("access_token")
     return {"message": "Logged out"}
 
+@app.get("/api/search")
+async def search(query: str, current_user: models.User = Depends(get_current_user_cookie), db: Session = Depends(get_db)):
+    if not current_user or current_user.role != "admin":
+         raise HTTPException(status_code=403, detail="Not authorized")
+    
+    results = scraping.scrape_mercadolibre(query)
+    
+   
+    if results:
+      
+        for res in results:
+            db_product = models.ProductResult(
+                query=query,
+                name=res["name"],
+                price=res["price"],
+                link=res["link"]
+            )
+            db.add(db_product)
+        db.commit()
+        
+    
+    return  results
 
 
 
