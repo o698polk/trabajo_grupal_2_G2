@@ -76,10 +76,40 @@ async def login(response: Response, username: str = Form(...), password: str = F
     return {"message": "Login successful", "access_token": access_token}
 
 @app.get("/logout")
-async def logout(response: Response):
+async def logout():
+    response = RedirectResponse(url="/login")
     response.delete_cookie("access_token")
-    return {"message": "Logged out"}
+    return response
 
+@app.get("/dashboard", response_class=HTMLResponse)
+async def dashboard(request: Request, current_user: models.User = Depends(get_current_user_cookie)):
+    if not current_user or current_user.role != "admin":
+        return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
+    
+    return templates.TemplateResponse("dashboard.html", {"request": request, "user": current_user})
+
+@app.get("/api/search")
+async def search(query: str, current_user: models.User = Depends(get_current_user_cookie), db: Session = Depends(get_db)):
+    if not current_user or current_user.role != "admin":
+         raise HTTPException(status_code=403, detail="Not authorized")
+    
+    results = scraping.scrape_mercadolibre(query)
+    
+   
+    if results:
+      
+        for res in results:
+            db_product = models.ProductResult(
+                query=query,
+                name=res["name"],
+                price=res["price"],
+                link=res["link"]
+            )
+            db.add(db_product)
+        db.commit()
+        
+    
+    return  results
 
 
 
