@@ -3,8 +3,8 @@ from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from . import models, database, auth, crud, scraping
-from .database import engine, get_db
+from . import models, auth, crud, scraping
+from .models import engine, get_db
 from datetime import timedelta
 import os
 from jose import JWTError, jwt
@@ -47,9 +47,12 @@ def get_current_user_cookie(request: Request, db: Session = Depends(get_db)):
         print(f"DEBUG: User '{username}' not found in DB")
     return user
 
-@app.get("/")
-async def root():
-    return {"message": "Welcome to the API. Use /login to authenticate."}
+@app.get("/", response_class=HTMLResponse)
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request, current_user: models.User = Depends(get_current_user_cookie)):
+    if current_user:
+        return RedirectResponse(url="/dashboard", status_code=status.HTTP_302_FOUND)
+    return templates.TemplateResponse("login.html", {"request": request})
 
 @app.post("/login")
 async def login(response: Response, username: str = Form(...), password: str = Form(...), db: Session = Depends(get_db)):
@@ -64,7 +67,10 @@ async def login(response: Response, username: str = Form(...), password: str = F
     )
     
    
-    response.set_cookie(
+    redirect_resp = RedirectResponse(url="/dashboard", status_code=status.HTTP_302_FOUND)
+    
+   
+    redirect_resp.set_cookie(
         key="access_token", 
         value=access_token, 
         httponly=True,
@@ -73,15 +79,24 @@ async def login(response: Response, username: str = Form(...), password: str = F
         secure=False 
     )
     print(f"DEBUG: Login successful for '{username}', cookie set.")
-    return {"message": "Login successful", "access_token": access_token}
+    return redirect_resp
 
 @app.get("/logout")
-async def logout(response: Response):
+async def logout():
+    response = RedirectResponse(url="/login")
     response.delete_cookie("access_token")
-    return {"message": "Logged out"}
+    return response
+
+@app.get("/dashboard", response_class=HTMLResponse)
+async def dashboard(request: Request, current_user: models.User = Depends(get_current_user_cookie), db: Session = Depends(get_db)):
+    if not current_user or current_user.role != "admin":
+        return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
+    
+    products = crud.get_all_products(db)
+    return templates.TemplateResponse("dashboard.html", {"request": request, "user": current_user, "products": products})
 
 @app.get("/api/search")
-async def search(query: str, current_user: models.User = Depends(get_current_user_cookie), db: Session = Depends(get_db)):
+def search(query: str, current_user: models.User = Depends(get_current_user_cookie), db: Session = Depends(get_db)):
     if not current_user or current_user.role != "admin":
          raise HTTPException(status_code=403, detail="Not authorized")
     
@@ -103,5 +118,13 @@ async def search(query: str, current_user: models.User = Depends(get_current_use
     
     return  results
 
-
-
+@app.get("/api/download/{filename}")
+async def download_csv(filename: str, current_user: models.User = Depends(get_current_user_cookie)):
+    if not current_user or current_user.role != "admin":
+         raise HTTPException(status_code=403, detail="Not authorized")
+    
+    file_path = os.path.join("csv_archivos", filename)
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Archivo no encontrado")
+    
+    return FileResponse(path=file_path, filename=filename, media_type='text/csv')
