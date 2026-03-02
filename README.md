@@ -1,5 +1,7 @@
-# 🛒 Trabajo Grupal 2  
+# Trabajo Grupal 2  
 # Scraping Automatizado de Mercado Libre con Autenticación JWT
+
+Se desarrollaron ambos ejercicios en una sola aplicación, integrando los conceptos aprendidos durante las horas de clase. Como resultado, se creó una demo funcional de un sistema de scraping automatizado, aplicando buenas prácticas de estructuración, lógica de programación y manejo de datos.
 
 Aplicación web desarrollada en **Python** que implementa autenticación mediante **JWT**, realiza scraping automatizado en **Mercado Libre**, obtiene información de los primeros 5 resultados de búsqueda y almacena los datos en una base de datos **PostgreSQL** para su posterior consulta por parte del usuario.
 
@@ -12,7 +14,7 @@ Aplicación web desarrollada en **Python** que implementa autenticación mediant
 - Polk Brando Vernaza  
 
 ---
-
+# Construcción del API
 ##  Creación del Proyecto y Repositorio en GitHub
 
 Se creó el repositorio para el control de versiones y el trabajo colaborativo del equipo.
@@ -68,7 +70,9 @@ Verificando la correcta generación y validación del token JWT.
 ![Pruebas con curl](imgguia/in5.png)
 
 ---
-
+# Web Scrapping
+## Elegir una página pública
+- https://listado.mercadolibre.com.ec/
 ##  Implementación del Scraping
 
 ### 1️ Análisis Inicial con Notebook
