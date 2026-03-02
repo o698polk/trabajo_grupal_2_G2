@@ -23,26 +23,59 @@ def get_html(driver, url, selector, sleep_time=10):
 
 def scrape_mercadolibre(query: str):
     driver = None
-    csv_filename = None
+    products = []
     try:
         chrome_options = Options()
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-dev-shm-usage")
+        # Set a real user-agent
+        chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
+        chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        chrome_options.add_experimental_option('useAutomationExtension', False)
         
         service = Service(ChromeDriverManager().install())
         driver = webdriver.Chrome(service=service, options=chrome_options)
         
-        URL = f"https://listado.mercadolibre.com.ec/{query}"
         selector = "#root-app" 
         
-        html_content = get_html(driver, URL, selector)
-        soup = BeautifulSoup(html_content, "html.parser")
-        
-        products = []
-        cards = soup.find_all("div", class_="poly-card__content")
-        
-        if not cards:
-             cards = soup.select(".ui-search-result__content-wrapper")
+        for page in range(2): # First 5 pages
+            # Mercado Libre uses offsets of 48 or 50 items. Starting at 1, 49, 97...
+            offset = 1 + (page * 48)
+            if page == 0:
+                URL = f"https://listado.mercadolibre.com.ec/{query.replace(' ', '-')}"
+            else:
+                URL = f"https://listado.mercadolibre.com.ec/{query.replace(' ', '-')}_Desde_{offset}_NoIndex_True"
+            
+            print(f"DEBUG: Scraping Page {page+1}: {URL}")
+            
+            # get_html already has a 10s sleep by default
+            html_content = get_html(driver, URL, selector, sleep_time=10)
+            soup = BeautifulSoup(html_content, "html.parser")
+            
+            # Broadened selectors for different Mercado Libre layouts
+            cards = soup.select(".poly-card__content")
+            if not cards:
+                cards = soup.select(".ui-search-result__content-wrapper")
+            if not cards:
+                cards = soup.select(".ui-search-result")
+            if not cards:
+                cards = soup.select(".poly-card")
+
+            if not cards:
+                print(f"DEBUG: No more cards found on page {page+1}, stopping. Try without replacement if spaces exist.")
+                # Try simple URL if dash-version failed?
+                if page == 0:
+                    URL_fallback = f"https://listado.mercadolibre.com.ec/{query}"
+                    print(f"DEBUG: Falling back to {URL_fallback}")
+                    html_content = get_html(driver, URL_fallback, selector, sleep_time=10)
+                    soup = BeautifulSoup(html_content, "html.parser")
+                    cards = soup.select(".poly-card__content") or soup.select(".ui-search-result__content-wrapper") or soup.select(".ui-search-result")
+
+            if not cards:
+                print(f"DEBUG: Still no cards found on page {page+1} after fallback.")
+                break
+
+            print(f"DEBUG: Found {len(cards)} cards on page {page+1}")
 
         for product in cards:
             title_tag = product.find("a", class_="poly-component__title")

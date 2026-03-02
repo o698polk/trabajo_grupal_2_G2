@@ -89,11 +89,12 @@ async def logout():
     return response
 
 @app.get("/dashboard", response_class=HTMLResponse)
-async def dashboard(request: Request, current_user: models.User = Depends(get_current_user_cookie)):
+async def dashboard(request: Request, current_user: models.User = Depends(get_current_user_cookie), db: Session = Depends(get_db)):
     if not current_user or current_user.role != "admin":
         return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
     
-    return templates.TemplateResponse("dashboard.html", {"request": request, "user": current_user})
+    products = crud.get_all_products(db)
+    return templates.TemplateResponse("dashboard.html", {"request": request, "user": current_user, "products": products})
 
 @app.get("/api/search")
 async def search(query: str, current_user: models.User = Depends(get_current_user_cookie), db: Session = Depends(get_db)):
