@@ -25,3 +25,6 @@ def create_admin_user(db: Session):
         db.refresh(admin_user)
         return admin_user
     return existing_admin
+
+def get_all_products(db: Session):
+    return db.query(models.ProductResult).order_by(models.ProductResult.created_at.desc()).all()
